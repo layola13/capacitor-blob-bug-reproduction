@@ -1,6 +1,6 @@
 // src/app.ts
 import { Capacitor } from '@capacitor/core';
-import { Http } from '@capacitor/http';
+import { CapacitorHttp } from '@capacitor/core';
 import axios from 'axios';
 
 /**
@@ -74,7 +74,7 @@ async function testBlobHandling() {
   // Test 1: Using Capacitor HTTP plugin
   try {
     log("\n=== TEST 1: Using Capacitor HTTP plugin ===");
-    const response = await Http.request({
+    const response = await CapacitorHttp.request({
       method: 'GET',
       url: mockAudioUrl,
       responseType: 'blob'
@@ -84,6 +84,8 @@ async function testBlobHandling() {
     log(`Response data instanceof Blob: ${response.data instanceof Blob}`);
 
     if (typeof response.data === 'string') {
+      //print the original blob size
+      log(`❌ original blob size: 1024`, true);
       log(`❌ BUG DETECTED: Received string instead of Blob`, true);
       log(`String response length: ${response.data.length}`);
 

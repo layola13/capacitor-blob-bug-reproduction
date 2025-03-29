@@ -19,7 +19,6 @@
     "@capacitor/cli": "^7.1.0",
     "@capacitor/core": "^7.1.0",
     "@capacitor/filesystem": "^7.0.0",
-    "@capacitor/http": "^0.0.2",
     "@capacitor/preferences": "^7.0.0",
     "@capacitor/toast": "^7.0.0",
     "@coze/api": "^1.1.0",
