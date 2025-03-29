@@ -1,0 +1,46 @@
+{
+    "appId": "com.dsjm.app",
+    "appName": "德上精密APP",
+    "webDir": "www",
+    "bundledWebRuntime": false,
+    "server": {
+      "androidScheme": "https",
+      "hostname": "app.local",
+      "allowNavigation": ["jwt.unrealgpt.me"],
+      "errorPath": "login.html"
+    },
+    "android": {
+      "backgroundColor": "#ffffff",
+      "allowMixedContent": true,
+      "captureInput": true,
+      "webContentsDebuggingEnabled": true,
+      "initialFocus": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": {
+      "SplashScreen": {
+        "launchShowDuration": 2000
+      },
+      "CapacitorCookies": {
+        "enabled": true
+      },
+      "CapacitorHttp": {
+        "enabled": true
+      },
+      "Permissions": {
+        "permissions": ["android.permission.RECORD_AUDIO"]
+      },
+      "Media": {
+        "androidGalleryMode": true
+      }
+    },
+    "cordova": {
+      "preferences": {
+        "AndroidXEnabled": "true",
+        "ScrollEnabled": "false",
+        "DisallowOverscroll": "true"
+      }
+    }
+  }
