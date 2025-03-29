@@ -1,6 +1,7 @@
 // src/app.ts
 import { Capacitor } from '@capacitor/core';
 import { Http } from '@capacitor/http';
+import axios from 'axios';
 
 /**
  * Complete Capacitor Blob ResponseType Bug Reproduction
@@ -14,7 +15,7 @@ function createMockMP3Data(size: number = 1024): Uint8Array {
   // Create some fake MP3 data with proper header
   // Real MP3 starts with ID3 tag or sync word 0xFF 0xFB
   const data = new Uint8Array(size);
-  
+
   // Set ID3 header (ID3v2 tag)
   data[0] = 0x49; // 'I'
   data[1] = 0x44; // 'D'
@@ -22,12 +23,12 @@ function createMockMP3Data(size: number = 1024): Uint8Array {
   data[3] = 0x03; // version 3
   data[4] = 0x00; // revision 0
   data[5] = 0x00; // flags
-  
+
   // Fill rest with random data
   for (let i = 6; i < size; i++) {
     data[i] = Math.floor(Math.random() * 256);
   }
-  
+
   return data;
 }
 
@@ -41,17 +42,17 @@ function setupMockAudioEndpoint(): string {
 // Log to both console and UI
 function log(message: string, isError: boolean = false) {
   console.log(message);
-  
+
   const resultDisplay = document.getElementById('result-display');
   if (resultDisplay) {
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
     logEntry.textContent = message;
-    
+
     if (isError) {
       logEntry.style.color = 'red';
     }
-    
+
     resultDisplay.appendChild(logEntry);
   }
 }
@@ -59,15 +60,17 @@ function log(message: string, isError: boolean = false) {
 // Function to test both XMLHttpRequest (web) and Capacitor HTTP (native)
 async function testBlobHandling() {
   const mockAudioUrl = setupMockAudioEndpoint();
-  
+
   const resultDisplay = document.getElementById('result-display');
   if (resultDisplay) {
     resultDisplay.innerHTML = '';
+    // Add error background style when response type is wrong
+    resultDisplay.style.backgroundColor = '#fff';
   }
-  
+
   log("=== CAPACITOR BUG REPRODUCTION ===");
   log(`Platform: ${Capacitor.getPlatform()}`);
-  
+
   // Test 1: Using Capacitor HTTP plugin
   try {
     log("\n=== TEST 1: Using Capacitor HTTP plugin ===");
@@ -76,20 +79,26 @@ async function testBlobHandling() {
       url: mockAudioUrl,
       responseType: 'blob'
     });
-    
+
     log(`Response data type: ${typeof response.data}`);
     log(`Response data instanceof Blob: ${response.data instanceof Blob}`);
-    
+
     if (typeof response.data === 'string') {
+      log(`❌ BUG DETECTED: Received string instead of Blob`, true);
       log(`String response length: ${response.data.length}`);
-      
+
+      if (resultDisplay) {
+        resultDisplay.style.backgroundColor = '#ffebee';
+      }
+
       // Show first few bytes in hex format
       let hexPreview = '';
       for (let i = 0; i < Math.min(20, response.data.length); i++) {
         hexPreview += response.data.charCodeAt(i).toString(16).padStart(2, '0') + ' ';
       }
       log(`First 20 bytes (hex): ${hexPreview}`);
-      
+      log(`⚠️ Attempting fallback conversion from string to Blob...`, true);
+
       // Try to convert the string back to a blob (only needed on Android)
       try {
         // Convert binary string to array buffer
@@ -98,20 +107,20 @@ async function testBlobHandling() {
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
-        
+
         // Create blob from array buffer
         const recoveredBlob = new Blob([bytes.buffer], { type: 'audio/mpeg' });
         log(`Recovered blob size: ${recoveredBlob.size}`);
-        
+
         // Create audio element from recovered blob
         const audioUrl = URL.createObjectURL(recoveredBlob);
         log(`Recovered audio URL: ${audioUrl}`);
-        
+
         // Add audio player to UI
         const audioElement = document.createElement('audio');
         audioElement.controls = true;
         audioElement.src = audioUrl;
-        
+
         if (resultDisplay) {
           const audioContainer = document.createElement('div');
           audioContainer.style.margin = '10px 0';
@@ -120,20 +129,21 @@ async function testBlobHandling() {
         }
       } catch (e) {
         log(`Error recovering blob from string: ${e}`, true);
+        log(`❌ Fallback conversion failed: ${e}`, true);
       }
     } else if (response.data instanceof Blob) {
       log(`Blob size: ${response.data.size}`);
       log(`Blob type: ${response.data.type}`);
-      
+
       // Create audio element from blob
       const audioUrl = URL.createObjectURL(response.data);
       log(`Audio URL: ${audioUrl}`);
-      
+
       // Add audio player to UI
       const audioElement = document.createElement('audio');
       audioElement.controls = true;
       audioElement.src = audioUrl;
-      
+
       if (resultDisplay) {
         const audioContainer = document.createElement('div');
         audioContainer.style.margin = '10px 0';
@@ -144,59 +154,105 @@ async function testBlobHandling() {
   } catch (error) {
     log(`Error in Capacitor HTTP test: ${error}`, true);
   }
-  
+
   // Test 2: Using standard XMLHttpRequest for comparison
   try {
     log("\n=== TEST 2: Using standard XMLHttpRequest ===");
     const xhr = new XMLHttpRequest();
     xhr.open('GET', mockAudioUrl);
     xhr.responseType = 'blob';
-    
+
     const xhrPromise = new Promise<void>((resolve, reject) => {
-      xhr.onload = function() {
+      xhr.onload = function () {
         if (xhr.status === 200) {
           const responseData = xhr.response;
-          
+
           log(`XHR response data type: ${typeof responseData}`);
           log(`XHR response instanceof Blob: ${responseData instanceof Blob}`);
-          
+
           if (responseData instanceof Blob) {
+            log(`✅ SUCCESS: Axios returned correct Blob response`);
             log(`XHR blob size: ${responseData.size}`);
             log(`XHR blob type: ${responseData.type}`);
-            
+
             // Create audio element from blob
             const audioUrl = URL.createObjectURL(responseData);
             log(`XHR audio URL: ${audioUrl}`);
-            
+
             // Add audio player to UI
             const audioElement = document.createElement('audio');
             audioElement.controls = true;
             audioElement.src = audioUrl;
-            
+
             if (resultDisplay) {
               const audioContainer = document.createElement('div');
               audioContainer.style.margin = '10px 0';
               audioContainer.appendChild(audioElement);
               resultDisplay.appendChild(audioContainer);
             }
+          } else {
+
+            log(`❌ ERROR: XHR did not return a Blob`, true);
+            if (resultDisplay)
+              resultDisplay.style.backgroundColor = '#ffebee';
           }
           resolve();
         } else {
           reject(new Error(`XHR error: ${xhr.status}`));
         }
       };
-      
-      xhr.onerror = function() {
+
+      xhr.onerror = function () {
         reject(new Error('XHR network error'));
       };
     });
-    
+
     xhr.send();
     await xhrPromise;
   } catch (error) {
     log(`Error in XMLHttpRequest test: ${error}`, true);
   }
-  
+
+  // Add Test 3: Using Axios
+  try {
+    log("\n=== TEST 3: Using Axios ===");
+    const response = await axios.get(mockAudioUrl, {
+      responseType: 'blob'
+    });
+
+    log(`Axios response data type: ${typeof response.data}`);
+    log(`Axios response instanceof Blob: ${response.data instanceof Blob}`);
+
+    if (response.data instanceof Blob) {
+      log(`✅ SUCCESS: Axios returned correct Blob response`);
+      log(`Axios blob size: ${response.data.size}`);
+      log(`Axios blob type: ${response.data.type}`);
+
+      // Create audio element from blob
+      const audioUrl = URL.createObjectURL(response.data);
+      log(`Axios audio URL: ${audioUrl}`);
+
+      // Add audio player to UI
+      const audioElement = document.createElement('audio');
+      audioElement.controls = true;
+      audioElement.src = audioUrl;
+
+      if (resultDisplay) {
+        const audioContainer = document.createElement('div');
+        audioContainer.style.margin = '10px 0';
+        audioContainer.appendChild(audioElement);
+        resultDisplay.appendChild(audioContainer);
+      }
+    } else {
+      log(`❌ ERROR: Axios did not return a Blob`, true);
+      if (resultDisplay) {
+        resultDisplay.style.backgroundColor = '#ffebee';
+      }
+    }
+  } catch (error) {
+    log(`❌ Error in Axios test: ${error}`, true);
+  }
+
   // Clean up the object URL
   URL.revokeObjectURL(mockAudioUrl);
 }
@@ -208,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (platformInfo) {
     platformInfo.textContent = `Current platform: ${Capacitor.getPlatform()}`;
   }
-  
+
   // Set up test button
   const testButton = document.getElementById('test-button');
   if (testButton) {

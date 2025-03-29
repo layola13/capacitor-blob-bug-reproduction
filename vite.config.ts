@@ -23,7 +23,7 @@ export default defineConfig({
   },
   build: {
     outDir: './www',
-    minify: true, // 构建时禁用代码压缩
+    minify: false, // 构建时禁用代码压缩
     emptyOutDir: true,
     commonjsOptions: {
       transformMixedEsModules: true // 允许混合使用 ES 和 CommonJS
