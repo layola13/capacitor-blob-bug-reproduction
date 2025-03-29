@@ -57,6 +57,116 @@ function log(message: string, isError: boolean = false) {
   }
 }
 
+// Add Test 4: Using real server endpoint
+async function testServerEndpoint() {
+  const resultDisplay = document.getElementById('result-display');
+  try {
+    log("\n=== TEST 4: Testing Server Endpoint ===");
+    const response = await CapacitorHttp.request({
+      method: 'POST',
+      url: 'https://jwt.unrealgpt.me/api/speech_test',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      data: {
+        input: "Hello world",
+        voice_id: "some-voice-id",
+        stream: true
+      },
+      responseType: 'arraybuffer'
+    });
+
+    log(`Server response data type: ${typeof response.data}`);
+    log(`Server response instanceof Blob: ${response.data instanceof Blob}`);
+
+    if (typeof response.data === 'string') {
+      log(`❌ BUG DETECTED: Server returned string instead of Blob`, true);
+      // ... existing string handling code ...
+    }
+    else if (response.data instanceof ArrayBuffer) {
+
+      log(`✅ BUG DETECTED: Server returned ArrayBuffer instead of ArrayBuffer`, true);
+      log(`ArrayBuffer size: ${response.data.byteLength}`);
+      log(`ArrayBuffer byteLength: ${response.data.byteLength}`);
+    
+      log(`ArrayBuffer slice: ${response.data.slice(0, 20)}`);
+    }
+
+    else if (response.data instanceof Blob) {
+      log(`✅ SUCCESS: Server returned correct Blob response`);
+      log(`Blob size: ${response.data.size}`);
+      log(`Blob type: ${response.data.type}`);
+      
+      // Create audio player from blob
+      const audioUrl = URL.createObjectURL(response.data);
+      const audioElement = document.createElement('audio');
+      audioElement.controls = true;
+      audioElement.src = audioUrl;
+
+      if (resultDisplay) {
+        const audioContainer = document.createElement('div');
+        audioContainer.style.margin = '10px 0';
+        audioContainer.appendChild(audioElement);
+        resultDisplay.appendChild(audioContainer);
+      }
+    }
+  } catch (error) {
+    log(`❌ Error in server test: ${error}`, true);
+  }
+}
+
+
+// Add Test 5: Using Axios to test server endpoint
+async function testServerEndpointWithAxios() {
+  const resultDisplay = document.getElementById('result-display');
+  try {
+    log("\n=== TEST 5: Testing Server Endpoint with Axios ===");
+    const response = await axios.post('https://jwt.unrealgpt.me/api/speech_test', 
+      {
+        input: "Hello world",
+        voice_id: "some-voice-id",
+        stream: true
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        responseType: 'blob'
+      }
+    );
+
+    log(`Axios response data type: ${typeof response.data}`);
+    log(`Axios response instanceof Blob: ${response.data instanceof Blob}`);
+
+    if (response.data instanceof Blob) {
+      log(`✅ SUCCESS: Axios returned correct Blob response`);
+      log(`Blob size: ${response.data.size}`);
+      log(`Blob type: ${response.data.type}`);
+      
+      // Create audio player from blob
+      const audioUrl = URL.createObjectURL(response.data);
+      const audioElement = document.createElement('audio');
+      audioElement.controls = true;
+      audioElement.src = audioUrl;
+
+      if (resultDisplay) {
+        const audioContainer = document.createElement('div');
+        audioContainer.style.margin = '10px 0';
+        audioContainer.appendChild(audioElement);
+        resultDisplay.appendChild(audioContainer);
+      }
+    } else {
+      log(`❌ ERROR: Axios did not return a Blob`, true);
+      if (resultDisplay) {
+        resultDisplay.style.backgroundColor = '#ffebee';
+      }
+    }
+  } catch (error) {
+    log(`❌ Error in Axios server test: ${error}`, true);
+  }
+}
+
+
 // Function to test both XMLHttpRequest (web) and Capacitor HTTP (native)
 async function testBlobHandling() {
   const mockAudioUrl = setupMockAudioEndpoint();
@@ -255,6 +365,9 @@ async function testBlobHandling() {
     log(`❌ Error in Axios test: ${error}`, true);
   }
 
+
+  await testServerEndpoint();
+  await testServerEndpointWithAxios();
   // Clean up the object URL
   URL.revokeObjectURL(mockAudioUrl);
 }
